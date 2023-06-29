@@ -12,6 +12,7 @@ steps involved in Analysis are
 
              4] Counting and Analysing the ideoms in the book
 
-             
+
+using Data Visualization to display the final report
 
              
