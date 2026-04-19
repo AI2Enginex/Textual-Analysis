@@ -1,187 +1,113 @@
 import re
+from collections import Counter
+from typing import Dict, List, Tuple
+
 import nltk
-nltk.download('stopwords')
 import pandas as pd
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 
+nltk.download('stopwords', quiet=True)
+
+
 class Book_data:
+    """Encapsulates text preprocessing and lexicon-based frequency analysis."""
 
-    def __init__(self,base_file):
-
+    def __init__(self, base_file: str):
+        self.base_file = base_file
         self.five_points = pd.read_csv(base_file)
 
-        self.slang_words = []
-        self.word_count = []
-        self.total_emotions = []
-        self.motivational_words = []
+    def process_data(self, column_name: str) -> List[List[str]]:
+        """Tokenize rows in the selected column into lowercase alphabetic tokens."""
+        tokens_per_row: List[List[str]] = []
 
-        self.slang_count = {}
+        for message in self.five_points[column_name].fillna(""):
+            normalized = re.sub('[^a-zA-Z]', ' ', str(message)).lower()
+            tokens_per_row.append(normalized.split())
 
-        self.emotions_data = {}
+        return tokens_per_row
 
-        self.frequency_of_emotions = {}
+    @staticmethod
+    def _load_word_list(file_name: str) -> List[str]:
+        words: List[str] = []
+        with open(file_name, encoding='utf-8') as file_obj:
+            for line in file_obj:
+                cleaned = line.replace(',', '').replace("\n", '').replace("'", '').strip().lower()
+                if cleaned:
+                    words.append(cleaned)
+        return words
 
-        self.motivational_words_count = {}
+    def count_bad_words(self, file_name: str, column_name: str) -> Tuple[Dict[str, int], List[int]]:
+        tokens = [word for row in self.process_data(column_name) for word in row]
+        slang_words = set(self._load_word_list(file_name))
+        slang_count = Counter(word for word in tokens if word in slang_words)
 
-    def process_data(self,column_name):
+        return dict(slang_count), list(slang_count.values())
 
-        for message in self.five_points[column_name]:
-            word = re.sub('[^a-zA-Z]', ' ', message)
-            review = word.split()
-            self.word_count.append(review)
-        return self.word_count
+    def get_emotions(self, file_name: str, column_name: str) -> Tuple[Dict[str, int], List[int]]:
+        tokens = [word for row in self.process_data(column_name) for word in row]
 
-    def count_bad_words(self,file_name,column_name):
-        
-        curse_freq_count = []
-        data = self.process_data(column_name)
-        data = [x for i in data for x in i]
+        emotions_data: Dict[str, str] = {}
+        with open(file_name, encoding='utf-8') as emotions_file:
+            for line in emotions_file:
+                cleaned = line.replace(',', '').replace("\n", '').replace("'", '').strip()
+                if not cleaned or ':' not in cleaned:
+                    continue
+                word, emotion = cleaned.split(':', 1)
+                emotions_data[word.strip().lower()] = emotion.strip().lower()
 
-        with open(file_name) as c_words:
+        token_counter = Counter(tokens)
+        emotion_counter: Counter = Counter()
 
-            for line in c_words:
+        for word, emotion in emotions_data.items():
+            if word in token_counter:
+                emotion_counter[emotion] += token_counter[word]
 
-                create_line = line.replace(",", "").replace(
-                    "\n", "").replace("'", "").strip()
+        return dict(emotion_counter), list(emotion_counter.values())
 
-                self.slang_words.append(create_line.lower())
+    def motivational_phrase(self, file_name: str, column_name: str) -> Tuple[Dict[str, int], List[int]]:
+        tokens = [word for row in self.process_data(column_name) for word in row]
+        motivational_words = set(self._load_word_list(file_name))
+        motivational_counter = Counter(word for word in tokens if word in motivational_words)
 
-        for i in data:
-            if i in self.slang_words:
-                if i not in self.slang_count:
-                    self.slang_count[i] = 1
-                else:
-                    self.slang_count[i] += 1
-
-        for items , values in self.slang_count.items():
-            curse_freq_count.append(values)
-
-        return self.slang_count, curse_freq_count
-
-    def get_emotions(self,file_name , column_name):
-        
-        emo_freq_count = []
-        data = self.process_data(column_name)
-        data = [i for x in data for i in x]
-
-        with open(file_name) as emotions_:
-            for line in emotions_:
-                create_line = line.replace(",", "").replace(
-                    "\n", "").replace("'", "").strip()
-                word, emotions = create_line.split(":")
-                self.emotions_data[word] = emotions
-
-        for key, value in self.emotions_data.items():
-            if key in data:
-                self.total_emotions.append(value)
-
-        for i in self.total_emotions:
-            if i not in self.frequency_of_emotions:
-                self.frequency_of_emotions[i] = 1
-            else:
-                self.frequency_of_emotions[i] += 1
-
-        for items , values in self.frequency_of_emotions.items():
-
-            emo_freq_count.append(values)
-
-
-        return self.frequency_of_emotions , emo_freq_count
-
-    def motivational_phrase(self,file_name,column_name):
-
-        mov_feq_count = []
-        data = self.process_data(column_name)
-        data = [i for x in data for i in x]
-
-        with open(file_name) as phrase_:
-
-            for line in phrase_:
-
-                create_line = line.replace(",", "").replace(
-                    "\n", "").replace("'", "").strip()
-
-                self.motivational_words.append(create_line.lower())
-
-        for word in data:
-
-            if word in self.motivational_words:
-                if word not in self.motivational_words_count:
-                    self.motivational_words_count[word] = 1
-                else:
-                    self.motivational_words_count[word] += 1
-
-        for items , values in self.motivational_words_count.items():
-
-            mov_feq_count.append(values)
-
-
-        return self.motivational_words_count , mov_feq_count
+        return dict(motivational_counter), list(motivational_counter.values())
 
 
 class Ideoms_Count:
+    """Counts idiom categories by matching normalized text against an idiom corpus."""
 
-    def __init__(self,file1,file2):
-        
-        self.corpus_data = []
-        self.category_count = []
-        self.freq_ideoms = {}
-        self.idioms_count = 0
+    def __init__(self, file1: str, file2: str):
         self.stemmer = PorterStemmer()
         self.main_file = pd.read_csv(file1)
         self.ideoms_file = pd.read_csv(file2)
+        self._stop_words = set(stopwords.words('english'))
 
+    def reading_file(self, feature1: str) -> List[str]:
+        corpus_data: List[str] = []
 
-    def reading_file(self,feature1):
+        for message in self.main_file[feature1].fillna("").astype(str).str.lower():
+            normalized = re.sub('[^a-zA-Z]', ' ', message)
+            review = normalized.split()
+            stemmed = [self.stemmer.stem(word) for word in review if word not in self._stop_words]
+            corpus_data.append(' '.join(stemmed))
 
-        self.main_file[feature1] = self.main_file[feature1].str.lower()
+        return corpus_data
 
-        for message in self.main_file[feature1]:
-            word = re.sub('[^a-zA-Z]',' ' , message)
-            review = word.split()
-            stop_words = [self.stemmer.stem(word) for word in review if word not in stopwords.words('english')]
-            words = ' '.join(stop_words)
-            self.corpus_data.append(words)
+    def get_idioms_count(self, feature1: str, feature2: str, feature3: str) -> Dict[str, int]:
+        corpus_lines = self.reading_file(feature1)
 
-        return self.corpus_data
-    
-    def get_idioms_count(self,feature1,feature2,feature3):
+        idiom_frame = self.ideoms_file[[feature2, feature3]].dropna().copy()
+        idiom_frame[feature2] = idiom_frame[feature2].astype(str).str.strip().str.lower()
+        idiom_lookup = dict(zip(idiom_frame[feature2], idiom_frame[feature3].astype(str).str.strip().str.lower()))
 
-        corpora = self.reading_file(feature1)
-        for word in corpora:
-            if word in self.ideoms_file[feature2]:
-                self.category_count.append(self.ideoms_file[feature3])
+        category_counter: Counter = Counter()
+        for line in corpus_lines:
+            if line in idiom_lookup:
+                category_counter[idiom_lookup[line]] += 1
 
-        for word in self.category_count:
-
-            if word not in self.freq_ideoms:
-
-                self.freq_ideoms[word] = 1
-            else:
-                self.freq_ideoms[word] += 1
-
-        return self.freq_ideoms
-
-
-
-
+        return dict(category_counter)
 
 
 if __name__ == "__main__":
-
-    #b = Book_data()
-
-    #slang, total_words , data = b.count_bad_words()
-    #total_emotions , y = b.get_emotions()
-    #phrases , z = b.motivational_phrase()
-
-    #print(f"total_words in the book are {total_words}")
-
-    #print()
-
-    #print(data)
-
-    idc = Ideoms_Count()
-    idc.get_idioms_count()
-
+    idc = Ideoms_Count('file_content.csv', 'file_ideoms.csv')
+    print(idc.get_idioms_count('file_contents', 'quote', 'category'))
