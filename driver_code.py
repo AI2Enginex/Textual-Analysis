@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -40,7 +40,22 @@ class Visualization_inputs:
     """Visualization layer used by the Tkinter app."""
 
     def __init__(self, base_file, file_1, file_2):
+        self.base_file = base_file
+        self.idiom_base_file = file_1
+        self.idiom_reference_file = file_2
         self.test_f = Test_file(base_file, file_1, file_2)
+
+    def set_files(self, base_file=None, file_1=None, file_2=None):
+        """Update file paths and rebuild analyzers."""
+        if base_file:
+            self.base_file = base_file
+            self.idiom_base_file = base_file
+        if file_1:
+            self.idiom_base_file = file_1
+        if file_2:
+            self.idiom_reference_file = file_2
+
+        self.test_f = Test_file(self.base_file, self.idiom_base_file, self.idiom_reference_file)
 
     @staticmethod
     def _slice_dataframe(frame, value, view_mode):
@@ -101,17 +116,23 @@ class TextAnalysisApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Textual Analysis")
-        self.root.geometry("480x260")
+        self.root.geometry("620x360")
+
+        self.base_file = 'file_content.csv'
+        self.idiom_reference_file = 'file_ideoms.csv'
 
         self.visual = Visualization_inputs(
-            base_file='file_content.csv',
-            file_1='file_content.csv',
-            file_2='file_ideoms.csv'
+            base_file=self.base_file,
+            file_1=self.base_file,
+            file_2=self.idiom_reference_file
         )
 
         self.operation_var = tk.StringVar(value="bad words")
         self.view_mode_var = tk.StringVar(value="top")
         self.limit_var = tk.StringVar(value="10")
+
+        self.base_file_var = tk.StringVar(value=self.base_file)
+        self.idiom_file_var = tk.StringVar(value=self.idiom_reference_file)
 
         self._build_ui()
 
@@ -119,7 +140,15 @@ class TextAnalysisApp:
         container = ttk.Frame(self.root, padding=16)
         container.pack(fill="both", expand=True)
 
-        ttk.Label(container, text="Operation").grid(row=0, column=0, sticky="w", pady=6)
+        ttk.Label(container, text="Analysis CSV").grid(row=0, column=0, sticky="w", pady=6)
+        ttk.Entry(container, textvariable=self.base_file_var, state='readonly').grid(row=0, column=1, sticky="ew", pady=6)
+        ttk.Button(container, text="Upload CSV", command=self._upload_base_csv).grid(row=0, column=2, padx=(8, 0), pady=6)
+
+        ttk.Label(container, text="Idioms CSV").grid(row=1, column=0, sticky="w", pady=6)
+        ttk.Entry(container, textvariable=self.idiom_file_var, state='readonly').grid(row=1, column=1, sticky="ew", pady=6)
+        ttk.Button(container, text="Upload CSV", command=self._upload_idiom_csv).grid(row=1, column=2, padx=(8, 0), pady=6)
+
+        ttk.Label(container, text="Operation").grid(row=2, column=0, sticky="w", pady=6)
         operation_box = ttk.Combobox(
             container,
             textvariable=self.operation_var,
@@ -127,9 +156,9 @@ class TextAnalysisApp:
             state="readonly",
             width=30
         )
-        operation_box.grid(row=0, column=1, sticky="ew", pady=6)
+        operation_box.grid(row=2, column=1, sticky="ew", pady=6)
 
-        ttk.Label(container, text="View Mode").grid(row=1, column=0, sticky="w", pady=6)
+        ttk.Label(container, text="View Mode").grid(row=3, column=0, sticky="w", pady=6)
         view_mode_box = ttk.Combobox(
             container,
             textvariable=self.view_mode_var,
@@ -137,19 +166,53 @@ class TextAnalysisApp:
             state="readonly",
             width=30
         )
-        view_mode_box.grid(row=1, column=1, sticky="ew", pady=6)
+        view_mode_box.grid(row=3, column=1, sticky="ew", pady=6)
 
-        ttk.Label(container, text="Limit").grid(row=2, column=0, sticky="w", pady=6)
-        ttk.Entry(container, textvariable=self.limit_var, width=32).grid(row=2, column=1, sticky="ew", pady=6)
+        ttk.Label(container, text="Limit").grid(row=4, column=0, sticky="w", pady=6)
+        ttk.Entry(container, textvariable=self.limit_var).grid(row=4, column=1, sticky="ew", pady=6)
 
         ttk.Button(container, text="Generate Chart", command=self._run_analysis).grid(
-            row=3,
+            row=5,
             column=0,
-            columnspan=2,
+            columnspan=3,
             pady=18
         )
 
         container.columnconfigure(1, weight=1)
+
+    @staticmethod
+    def _is_csv(file_path):
+        return file_path.lower().endswith('.csv')
+
+    def _upload_base_csv(self):
+        file_path = filedialog.askopenfilename(
+            title="Select Analysis CSV",
+            filetypes=[("CSV Files", "*.csv")]
+        )
+        if not file_path:
+            return
+        if not self._is_csv(file_path):
+            messagebox.showerror("Invalid File", "Please select a CSV file.")
+            return
+
+        self.base_file = file_path
+        self.base_file_var.set(file_path)
+        self.visual.set_files(base_file=file_path, file_1=file_path)
+
+    def _upload_idiom_csv(self):
+        file_path = filedialog.askopenfilename(
+            title="Select Idioms CSV",
+            filetypes=[("CSV Files", "*.csv")]
+        )
+        if not file_path:
+            return
+        if not self._is_csv(file_path):
+            messagebox.showerror("Invalid File", "Please select a CSV file.")
+            return
+
+        self.idiom_reference_file = file_path
+        self.idiom_file_var.set(file_path)
+        self.visual.set_files(file_2=file_path)
 
     def _run_analysis(self):
         operation = self.operation_var.get().strip().lower()
