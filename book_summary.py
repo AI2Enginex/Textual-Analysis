@@ -10,7 +10,7 @@ from nltk.stem import PorterStemmer
 nltk.download('stopwords', quiet=True)
 
 
-class Book_data:
+class BookData:
     """Encapsulates text preprocessing and lexicon-based frequency analysis."""
 
     def __init__(self, base_file: str):

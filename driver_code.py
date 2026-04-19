@@ -12,7 +12,7 @@ class Test_file:
     """Coordinates calls to analysis classes and returns DataFrame outputs."""
 
     def __init__(self, base_file, file1, file2):
-        self.book_obj = bs.Book_data(base_file)
+        self.book_obj = bs.BookData(base_file)
         self.ideoms_count = bs.Ideoms_Count(file1, file2)
 
     @staticmethod
