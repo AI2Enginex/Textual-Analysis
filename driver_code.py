@@ -21,19 +21,19 @@ class Test_file:
 
     def insp_phrase(self, file_3, column):
         mov, _ = self.book_obj.motivational_phrase(file_3, column)
-        return self._to_dataframe(mov)
+        return self._to_dataframe(mov).sort_values(by='frequency', ascending=False)
 
     def emotions(self, file_2, column):
         emo, _ = self.book_obj.get_emotions(file_2, column)
-        return self._to_dataframe(emo)
+        return self._to_dataframe(emo).sort_values(by='frequency', ascending=False)
 
     def bad_words(self, file_1, column):
         cbw, _ = self.book_obj.count_bad_words(file_1, column)
-        return self._to_dataframe(cbw)
+        return self._to_dataframe(cbw).sort_values(by='frequency', ascending=False)
 
     def count_ideoms(self, column1, column2, column3):
         ideoms_corpus = self.ideoms_count.get_idioms_count(column1, column2, column3)
-        return self._to_dataframe(ideoms_corpus)
+        return self._to_dataframe(ideoms_corpus).sort_values(by='frequency', ascending=False)
 
 
 class Visualization_inputs:
@@ -82,7 +82,7 @@ class Visualization_inputs:
         if value <= 0:
             raise ValueError("Limit must be greater than zero.")
         if value > len(frame.index):
-            raise ValueError("Limit exceeds available rows.")
+            pass # Optionally, you could raise a warning here instead of silently adjusting the limit
 
         selected = self._slice_dataframe(frame, value, view_mode)
         self._plot_frame(selected, plot_title)
@@ -143,10 +143,6 @@ class TextAnalysisApp:
         ttk.Label(container, text="Analysis CSV").grid(row=0, column=0, sticky="w", pady=6)
         ttk.Entry(container, textvariable=self.base_file_var, state='readonly').grid(row=0, column=1, sticky="ew", pady=6)
         ttk.Button(container, text="Upload CSV", command=self._upload_base_csv).grid(row=0, column=2, padx=(8, 0), pady=6)
-
-        # ttk.Label(container, text="Idioms CSV").grid(row=1, column=0, sticky="w", pady=6)
-        # ttk.Entry(container, textvariable=self.idiom_file_var, state='readonly').grid(row=1, column=1, sticky="ew", pady=6)
-        # ttk.Button(container, text="Upload CSV", command=self._upload_idiom_csv).grid(row=1, column=2, padx=(8, 0), pady=6)
 
         ttk.Label(container, text="Operation").grid(row=2, column=0, sticky="w", pady=6)
         operation_box = ttk.Combobox(
